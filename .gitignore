@@ -1,0 +1,11 @@
+# Claude Code
+.claude/
+**/.claude/
+# CLAUDE.md
+
+# Dados brutos (não mascarados) - nunca versionar
+# Passo1_Limpeza/Clockify_Time_Report_Detailed_*.csv
+# Passo1_Limpeza/mapeamento_privado.csv
+
+#Ambiente virtual do Python
+# venv/
