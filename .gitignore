@@ -1,11 +1,32 @@
-# Claude Code
+#Nome privados
+Clockify_Time_Report_Detailed_*.csv
+mapeamento_privado.csv
+
+#Credenciais
+*.env
+.streamlit/secrets.toml
+
+#Artefatos
+modelos/
+*.joblib
+clockify_unificado_mascarado.csv
+demandas.csv
+demandas_filtradas.csv
+dataset_final.csv
+cache_movidesk/
+
+# Documentos
+*.pdf
+*.docx
+~$*
+
+# Ferramentas
 .claude/
-**/.claude/
-# CLAUDE.md
 
-# Dados brutos (não mascarados) - nunca versionar
-# Passo1_Limpeza/Clockify_Time_Report_Detailed_*.csv
-# Passo1_Limpeza/mapeamento_privado.csv
-
-#Ambiente virtual do Python
-# venv/
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+.ipynb_checkpoints/
+.pytest_cache/
