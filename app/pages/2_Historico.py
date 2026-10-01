@@ -170,6 +170,41 @@ else:
 st.divider()
 
 # =====================================================================
+# Exclusão de orçamentos registrados pela aplicação
+# =====================================================================
+st.header('Excluir orçamentos')
+
+todos = db.consultar("""
+    select id, criado_em, status, cliente, sistema, numero_chamado, previsao_horas
+      from orcamentos
+     order by criado_em desc
+""")
+
+if todos.empty:
+    st.info('Nenhum orçamento registrado.')
+else:
+    st.caption('Remove o registro de vez: some do histórico, da acurácia medida '
+               'e dos próximos treinos. Não dá para desfazer.')
+
+    def rotular_todos(identificador):
+        linha = todos.set_index('id').loc[identificador]
+        chamado = f" · #{linha['numero_chamado']}" if linha['numero_chamado'] else ''
+        return (f"{linha['criado_em']:%d/%m/%Y} · {linha['status']} · "
+                f"{exibir_cliente(linha['cliente'])}{chamado} · {linha['sistema']} · "
+                f"estimado {linha['previsao_horas']:.1f} h")
+
+    selecionados = st.multiselect('Orçamentos', todos['id'], format_func=rotular_todos)
+    confirmado = st.checkbox('Confirmo a exclusão definitiva', disabled=not selecionados)
+
+    if st.button('Excluir selecionados', disabled=not (selecionados and confirmado)):
+        removidos = db.executar('delete from orcamentos where id = any(%s::uuid[])',
+                                ([str(i) for i in selecionados],))
+        st.success(f'{removidos} orçamento(s) excluído(s).')
+        st.rerun()
+
+st.divider()
+
+# =====================================================================
 # Exclusão manual de demandas
 # =====================================================================
 st.header('Demandas do histórico')

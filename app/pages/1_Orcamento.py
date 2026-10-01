@@ -70,7 +70,14 @@ descricao = st.text_area('Descrição da demanda', placeholder='opcional', heigh
 # =====================================================================
 # Resultado
 # =====================================================================
-resultado = estimativa.estimar(int(projeto), int(tarefa))
+try:
+    resultado = estimativa.estimar(int(projeto), int(tarefa))
+except (FileNotFoundError, RuntimeError) as erro:
+    # Sem treino ativo ou .joblib ausente nesta máquina (modelos/ não vai para o git)
+    st.error(f'Não foi possível carregar o modelo: {erro}')
+    st.info('Treine o modelo na aba **Dados e Modelo** para gerar o arquivo nesta máquina.')
+    st.page_link('pages/3_Dados_e_Modelo.py', label='Ir para Dados e Modelo', icon='➡️')
+    st.stop()
 
 st.divider()
 st.subheader('Estimativa')

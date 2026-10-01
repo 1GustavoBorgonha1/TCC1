@@ -1,13 +1,14 @@
 from functools import lru_cache # Guarda o resultado da função em memória;
+from pathlib import PureWindowsPath
 
 import joblib #usado para salvar e carregar modelos de ML em json
 import pandas as pd
 
-from app.core import treino
+from . import treino
 
 from . import db
 from .config import (COBERTURA, CORTE_SEGMENTO, FAIXAS_ESFORCO, FEATURES,
-                     MIN_BASE_CONFIAVEL)
+                     MIN_BASE_CONFIAVEL, PASTA_MODELOS)
 
 NOMINAL = COBERTURA[1] - COBERTURA[0]
 TOLERANCIA = 0.05  
@@ -24,7 +25,8 @@ def treino_ativo() -> dict | None:
 # Guarda até 4 modelos em memória; o caminho tem o id do treino, então treinar invalida sozinho
 @lru_cache(maxsize=4)
 def _carregar(caminho: str):
-    return joblib.load(caminho)
+    # O banco guarda o caminho absoluto da máquina que treinou; usa só o nome do arquivo
+    return joblib.load(PASTA_MODELOS / PureWindowsPath(caminho).name)
 
 
 def estimar(tipo_projeto: int, tipo_tarefa: int) -> dict:
