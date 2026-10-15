@@ -1,38 +1,38 @@
 # Partes 6 a 8 do notebook: modelo final, métricas, faixa e estimativa
 from functools import lru_cache  # guarda resultados de funções na memória
 
-import joblib
+import joblib # salva e carrega o modelo treinado em arquivo .joblib
 import numpy as np
 import pandas as pd
-from sklearn.compose import ColumnTransformer
+from sklearn.compose import ColumnTransformer  # aplica um pré-processamento a colunas escolhidas
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import make_scorer
-from sklearn.model_selection import KFold, cross_val_predict, cross_validate
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder
+from sklearn.metrics import make_scorer  # transforma uma função de métrica própria em avaliador do sklearn
+from sklearn.model_selection import KFold, cross_val_predict, cross_validate  # validação cruzada: divide, prevê e avalia
+from sklearn.pipeline import Pipeline  # encadeia pré-processamento e modelo num objeto só
+from sklearn.preprocessing import OneHotEncoder  # transforma categorias em colunas 0/1
 
 import db
 from config import (COBERTURA, CORTE, FAIXAS, FEATURES, LIMIAR_PORTE, MIN_BASE,
                     PASTA_MODELOS, ROTULOS, SEMENTE)
 
 VALIDACAO = KFold(n_splits=5, shuffle=True, random_state=SEMENTE)
-NOMINAL = COBERTURA[1] - COBERTURA[0]
+NOMINAL = COBERTURA[1] - COBERTURA[0]  # cobertura prometida da faixa (0,90 - 0,10 = 80%)
 
 
 # 6.2 — Métricas
-def mre(real, previsto):
+def mre(real, previsto): # erro relativo: quanto a previsão errou, em proporção das horas reais
     return np.abs(np.asarray(real) - np.asarray(previsto)) / np.asarray(real)
 
 
-def mmre(real, previsto):
+def mmre(real, previsto): # erro relativo médio de todas as demandas
     return float(mre(real, previsto).mean())
 
 
-def mdmre(real, previsto):
+def mdmre(real, previsto):   # erro relativo mediano: o erro da demanda "típica"    
     return float(np.median(mre(real, previsto)))
 
 
-def pred_25(real, previsto):
+def pred_25(real, previsto):  # proporção de demandas com erro relativo de até 25%
     return float((mre(real, previsto) <= 0.25).mean())
 
 
@@ -165,9 +165,8 @@ def estimar(tipo_projeto, tipo_tarefa):
                          f'tipo de projeto e de tarefa (o mínimo recomendado é {MIN_BASE}). '
                          'A estimativa se apoia em pouca experiência.')
     if previsao > CORTE:
-        ressalvas.append('**Tipo de demanda que varia muito.** Novas funcionalidades e Power BI '
-                         'costumam fugir mais da previsão, para cima ou para baixo. Por isso a '
-                         'faixa é mais larga.')
+        ressalvas.append('**Previsão mais alta.** Novas funcionalidades e Power BI têm previsões maiores, '
+                         'e a faixa acompanha esse valor. O limite superior pode passar de 10 horas.')
         if ROTULOS[2] in cobertura:
             ressalvas.append(f'**Faixa um pouco menos confiável.** Em demandas reais de '
                              f'{ROTULOS[2]}, o esforço ficou dentro da faixa em '
