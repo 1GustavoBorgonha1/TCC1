@@ -73,3 +73,11 @@ create table if not exists orcamentos (
     concluido_em   timestamptz,
     constraint orcamento_concluido_tem_horas check (status <> 'concluido' or horas_reais is not null)
 );
+
+-- Reavaliação do teste prático: estimativa original de cada orçamento concluído,
+-- guardada antes da reestimativa com o modelo treinado só no histórico.
+alter table orcamentos
+    add column if not exists previsao_original   double precision,
+    add column if not exists limite_inf_original double precision,
+    add column if not exists limite_sup_original double precision,
+    add column if not exists treino_id_original  integer;

@@ -77,3 +77,18 @@ st.success(f"Modelo versão {treino['id']} (Random Forest com perda absoluta), t
            f"{treino['n_demandas'] + treino['n_orcamentos']} demandas "
            f"({treino['n_demandas']} do Clockify e {treino['n_orcamentos']} de orçamentos "
            f"concluídos na aplicação), finalizado e pronto para estimar em Orçamentos.")
+
+# ---------------------------------------------------------------- 7
+st.header('7. Reavaliação do teste prático')
+st.caption('Treina um modelo apenas com o histórico do Clockify até 30/09/2026, sem nenhum '
+           'orçamento, e reestima com ele todos os orçamentos concluídos. A estimativa feita '
+           'durante o teste fica guardada nas colunas *_original. O modelo treinado passa a '
+           'ser o ativo.')
+if st.button('Reavaliar orçamentos concluídos'):
+    with st.spinner('Treinando só com o histórico e reestimando os orçamentos…'):
+        treino_id = modelo.treinar_somente_historico('2026-10-01')
+        atualizados = modelo.reestimar_orcamentos(treino_id)
+    n_demandas = db.consultar('select n_demandas from treinos where id = %s',
+                              (treino_id,)).iloc[0]['n_demandas']
+    st.success(f'Treino usado: versão {treino_id}, com {n_demandas} demandas do Clockify. '
+               f'{atualizados} orçamentos concluídos reestimados.')

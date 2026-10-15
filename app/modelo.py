@@ -12,8 +12,9 @@ from sklearn.pipeline import Pipeline  # encadeia pré-processamento e modelo nu
 from sklearn.preprocessing import OneHotEncoder  # transforma categorias em colunas 0/1
 
 import db
+import etl
 from config import (COBERTURA, CORTE, FAIXAS, FEATURES, LIMIAR_PORTE, MIN_BASE,
-                    PASTA_MODELOS, ROTULOS, SEMENTE)
+                    PASTA_MODELOS, ROTULOS, SEMENTE, TIPO_PROJETO, TIPO_TAREFA)
 
 VALIDACAO = KFold(n_splits=5, shuffle=True, random_state=SEMENTE)
 NOMINAL = COBERTURA[1] - COBERTURA[0]  # cobertura prometida da faixa (0,90 - 0,10 = 80%)
@@ -180,3 +181,57 @@ def estimar(tipo_projeto, tipo_tarefa):
 
     return {'previsao': previsao, 'inf': inf, 'sup': sup, 'base': base,
             'treino_id': int(treino['id']), 'ressalvas': ressalvas}
+
+
+# Reavaliação do teste prático: um modelo treinado só com o histórico anterior ao teste
+def treinar_somente_historico(corte):
+    incluidas = etl.base()[1]
+    # Só demandas encerradas antes do início do teste prático
+    incluidas = incluidas[incluidas['data_fim'] < pd.Timestamp(corte)]
+    # Mesmas colunas de etl.dataset(), sem os orçamentos (não consulta a tabela orcamentos)
+    dados = pd.DataFrame({
+        'tipo_projeto': incluidas['sistema'].map(TIPO_PROJETO),
+        'tipo_tarefa': incluidas['tag'].map(TIPO_TAREFA),
+        'horas': incluidas['esforco'],
+        'origem': 'clockify',
+    })
+    return treinar(dados)
+
+
+def reestimar_orcamentos(treino_id):
+    treino = db.consultar('select * from treinos where id = %s', (treino_id,)).iloc[0]
+    modelo = _carregar(treino['caminho_modelo'])
+    orcamentos = db.consultar("""select id, tipo_projeto, tipo_tarefa from orcamentos
+                                  where status = 'concluido'""")
+    # Previsão e faixa calculadas como em estimar(), com os multiplicadores deste treino
+    previsoes = modelo.predict(orcamentos[FEATURES]) if len(orcamentos) else []
+    conexao = db.conectar()
+    try:
+        with conexao, conexao.cursor() as cursor:   # tudo ou nada
+            # Colunas de backup da estimativa feita durante o teste
+            cursor.execute("""alter table orcamentos
+                                  add column if not exists previsao_original double precision,
+                                  add column if not exists limite_inf_original double precision,
+                                  add column if not exists limite_sup_original double precision,
+                                  add column if not exists treino_id_original integer""")
+            # Copia a estimativa original só uma vez: rodar de novo não sobrescreve o backup
+            cursor.execute("""update orcamentos
+                                 set previsao_original = previsao_horas,
+                                     limite_inf_original = limite_inf,
+                                     limite_sup_original = limite_sup,
+                                     treino_id_original = treino_id
+                               where status = 'concluido' and previsao_original is null""")
+            atualizados = 0
+            for orcamento_id, previsao in zip(orcamentos['id'], previsoes):
+                fatores = treino['multiplicadores'][segmento(previsao)]
+                cursor.execute("""update orcamentos
+                                     set previsao_horas = %s, limite_inf = %s,
+                                         limite_sup = %s, treino_id = %s
+                                   where id = %s""",
+                               (float(previsao), float(previsao * fatores['fator_min']),
+                                float(previsao * fatores['fator_max']), int(treino_id),
+                                str(orcamento_id)))
+                atualizados += cursor.rowcount
+    finally:
+        conexao.close()
+    return atualizados
